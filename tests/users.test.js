@@ -9,6 +9,9 @@ const userModel = require("../model/user-model");
 describe("Users test", () => {
   const mongoServer = new MongoMemoryServer();
   const newUser = { name: "New User", age: 50 };
+  const testToken =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzA2NTUzNTQ3fQ.po0yMA-M9_q5DAOsinoQG4cJSSjY2ofSAI1slNjrYIM";
+  const agent = request.agent(app);
 
   beforeAll(async () => {
     process.env.NODE_ENV = "test";
@@ -22,7 +25,26 @@ describe("Users test", () => {
   });
 
   beforeEach(async () => {
-    loadInitialUsersOnMongoDB();
+    await loadInitialUsersOnMongoDB();
+  });
+
+  it("has to return a http only cookie if user exists", async () => {
+    const userToTest = usersMock[0];
+    const { statusCode, header } = await request(app)
+      .post("/users/login")
+      .send({ username: userToTest.name });
+    expect(statusCode).toBe(201);
+    console.log(header["set-cookie"][0]);
+    expect(header["set-cookie"][0]).toMatch(/token=.+; HttpOnly/);
+  });
+
+  it("when token cookie is sent in the request, has to return the user", async () => {
+    const userToTest = usersMock[0];
+    const { statusCode, body } = await agent
+      .get("/users/profile")
+      .set("Cookie", [`token=${testToken}`]);
+    expect(statusCode).toBe(200);
+    expect(body.name).toBe(userToTest.name);
   });
 
   it("has to return status 200 when call index endpoint", async () => {
